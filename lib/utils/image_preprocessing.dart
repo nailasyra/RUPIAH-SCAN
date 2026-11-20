@@ -22,7 +22,7 @@ class ImagePreprocessing {
       orientedImage,
       width: imageSize,
       height: imageSize,
-      interpolation: img.Interpolation.linear,
+      interpolation: img.Interpolation.nearest,
     );
 
     // Siapkan data RGB dalam format NHWC
