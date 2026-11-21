@@ -71,6 +71,12 @@ class _ScanScreenState extends State<ScanScreen> {
   bool isFrozen = false;
   Uint8List? frozenFrameBytes;
 
+  // Jumlah sampel stabil berturut-turut sebelum nominal diumumkan
+  static const int requiredStable = 3;
+
+  // Kalimat yang diucapkan guidance timer (berubah sesuai situasi)
+  String guidanceMessage = 'Silakan arahkan uang ke kamera.';
+
   String scanStatus = 'MENYIAPKAN MODEL...';
 
   String scanMessage = 'Mohon tunggu sebentar.';
@@ -149,7 +155,7 @@ class _ScanScreenState extends State<ScanScreen> {
 
       if (secondsWithoutMoney >= 10) {
         secondsWithoutMoney = 0;
-        await speakInstruction('Silakan arahkan uang ke kamera.');
+        await speakInstruction(guidanceMessage);
       }
     });
   }
@@ -330,21 +336,43 @@ class _ScanScreenState extends State<ScanScreen> {
       final prediction = await onnxService.predict(inputData);
       final String label = prediction['label'] as String;
       final double confidence = (prediction['confidence'] as num).toDouble();
+      final double margin = (prediction['margin'] as num).toDouble();
+      final String status = prediction['status'] as String;
 
-      debugPrint('Prediksi: $label | Confidence: $confidence');
+      debugPrint(
+          'Prediksi: $label | conf: $confidence | margin: $margin | status: $status');
 
-      // 4. Confidence rendah: lanjut mencari otomatis
-      if (confidence < 0.80) {
+      // 4a. Bukan uang
+      if (status == 'not_money') {
         resetScan();
         isCandidateDetected = false;
+        guidanceMessage = 'Itu bukan uang. Silakan arahkan kamera ke uang.';
 
         if (!mounted) return;
         setState(() {
-          scanStatus = 'MENCARI UANG';
-          scanMessage = 'Arahkan uang ke dalam bingkai kamera.';
+          scanStatus = 'BUKAN UANG';
+          scanMessage = 'Arahkan kamera ke uang.';
         });
         return;
       }
+
+      // 4b. Model tidak yakin: jangan menebak nominal
+      if (status == 'unsure') {
+        resetScan();
+        isCandidateDetected = false;
+        guidanceMessage =
+            'Uang kurang jelas. Ratakan uang dan pastikan cahaya cukup.';
+
+        if (!mounted) return;
+        setState(() {
+          scanStatus = 'KURANG JELAS';
+          scanMessage = 'Ratakan uang dan pastikan cahaya cukup.';
+        });
+        return;
+      }
+
+      // Dari sini status == 'money'
+      guidanceMessage = 'Silakan arahkan uang ke kamera.';
 
       // 5. Cek stabilitas gambar dan label
       if (previousFrame == null) {
@@ -367,8 +395,8 @@ class _ScanScreenState extends State<ScanScreen> {
 
       debugPrint('Sampel stabil: $stableCount');
 
-      // 6. Dua sampel stabil -> freeze frame dan hasil
-      if (stableCount >= 2 && !hasAnnounced) {
+      // 6. Beberapa sampel stabil berturut-turut -> freeze frame dan hasil
+      if (stableCount >= requiredStable && !hasAnnounced) {
         hasAnnounced = true;
         isCandidateDetected = true;
         isFrozen = true;
@@ -408,7 +436,7 @@ class _ScanScreenState extends State<ScanScreen> {
         if (mounted && !hasAnnounced) {
           setState(() {
             scanStatus = 'MEMERIKSA UANG...';
-            scanMessage = 'Menstabilkan gambar ${stableCount}/2.';
+            scanMessage = 'Menstabilkan gambar $stableCount/$requiredStable.';
           });
         }
       }
@@ -436,19 +464,19 @@ class _ScanScreenState extends State<ScanScreen> {
 
   String nominalText(String label) {
     switch (label) {
-      case 'duak':
+      case 'duaribu':
         return 'Rp2.000';
-      case 'duapuluhk':
+      case 'duapuluhribu':
         return 'Rp20.000';
-      case 'limak':
+      case 'limaribu':
         return 'Rp5.000';
-      case 'limapuluhk':
+      case 'limapuluhribu':
         return 'Rp50.000';
-      case 'sepuluhk':
+      case 'sepuluhribu':
         return 'Rp10.000';
-      case 'seratusk':
+      case 'seratusribu':
         return 'Rp100.000';
-      case 'seribuk':
+      case 'seribu':
         return 'Rp1.000';
       default:
         return 'Nominal tidak diketahui';

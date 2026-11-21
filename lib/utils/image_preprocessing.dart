@@ -22,7 +22,7 @@ class ImagePreprocessing {
       orientedImage,
       width: imageSize,
       height: imageSize,
-      interpolation: img.Interpolation.nearest,
+      interpolation: img.Interpolation.linear, // training (TensorFlow) memakai bilinear
     );
 
     // Siapkan data RGB dalam format NHWC

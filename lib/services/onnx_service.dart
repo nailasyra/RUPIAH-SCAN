@@ -8,15 +8,20 @@ class OnnxService {
   OrtSession? _session;
   OrtRunOptions? _runOptions;
 
+  // URUTAN HARUS SAMA PERSIS dengan class_names di Colab (alfabetis).
+  // Cek dengan: print(class_names) atau lihat labels.txt / config.json
   static const List<String> labels = [
-    'duak',
-    'duapuluhk',
-    'limak',
-    'limapuluhk',
-    'sepuluhk',
-    'seratusk',
-    'seribuk',
+    'duapuluhribu',
+    'duaribu',
+    'limapuluhribu',
+    'limaribu',
+    'other',
+    'sepuluhribu',
+    'seratusribu',
+    'seribu',
   ];
+
+  static const String otherLabel = 'other';
 
   Future<void> initialize() async {
     try {
@@ -77,7 +82,7 @@ class OnnxService {
         final scores = _flatten(outputTensor.value);
 
         if (scores.length != labels.length) {
-          throw Exception('Output model bukan 7 kelas');
+          throw Exception('Output model bukan ${labels.length} kelas');
         }
 
         var bestIndex = 0;
@@ -88,9 +93,24 @@ class OnnxService {
           }
         }
 
+        // tebakan kedua, untuk menghitung selisih (margin)
+        var secondIndex = bestIndex == 0 ? 1 : 0;
+
+        for (var i = 0; i < scores.length; i++) {
+          if (i != bestIndex && scores[i] > scores[secondIndex]) {
+            secondIndex = i;
+          }
+        }
+
+        final confidence = scores[bestIndex];
+        final margin = confidence - scores[secondIndex];
+        final label = labels[bestIndex];
+
         return {
-          'label': labels[bestIndex],
-          'confidence': scores[bestIndex],
+          'label': label,
+          'confidence': confidence,
+          'margin': margin,
+          'status': decide(label, confidence, margin),
           'scores': scores,
         };
       } finally {
@@ -101,6 +121,23 @@ class OnnxService {
     } finally {
       inputTensor.release();
     }
+  }
+
+  // Samakan dengan T_ACCEPT dan MARGIN di Colab (lihat config.json)
+  static const double tAccept = 0.7;
+  static const double marginMin = 0.2;
+
+  /// 'money' | 'not_money' | 'unsure'
+  static String decide(String label, double confidence, double margin) {
+    if (label == otherLabel && confidence >= 0.5) {
+      return 'not_money';
+    }
+
+    if (label != otherLabel && confidence >= tAccept && margin >= marginMin) {
+      return 'money';
+    }
+
+    return 'unsure';
   }
 
   List<double> _flatten(dynamic value) {

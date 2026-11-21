@@ -9,13 +9,13 @@ class AudioService {
   double get speechRate => _speechRate;
 
   final Map<String, String> _audioFiles = {
-    'duak': 'audio/dua ribu rupiah.mp3',
-    'duapuluhk': 'audio/dua puluh ribu rupiah.mp3',
-    'limak': 'audio/lima ribu rupiah.mp3',
-    'limapuluhk': 'audio/lima puluh ribu rupiah.mp3',
-    'sepuluhk': 'audio/sepuluh ribu rupiah.mp3',
-    'seratusk': 'audio/seratus ribu rupiah.mp3',
-    'seribuk': 'audio/seribu rupiah.mp3',
+    'duaribu': 'audio/dua ribu rupiah.mp3',
+    'duapuluhribu': 'audio/dua puluh ribu rupiah.mp3',
+    'limaribu': 'audio/lima ribu rupiah.mp3',
+    'limapuluhribu': 'audio/lima puluh ribu rupiah.mp3',
+    'sepuluhribu': 'audio/sepuluh ribu rupiah.mp3',
+    'seratusribu': 'audio/seratus ribu rupiah.mp3',
+    'seribu': 'audio/seribu rupiah.mp3',
   };
 
   // Mengatur kecepatan suara
